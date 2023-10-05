@@ -1,5 +1,8 @@
 const express = require('express');
 const app = express();
+const { body, validationResult }= require('express-validator');
+app.use(express.json());
+
 const alumnos = [
     {
         id: 11,
@@ -44,7 +47,7 @@ function id_numero(req, res, next){
         req.alumnoBuscado = resultado
         next()
     }else{
-        badRequest("ID alumno no encontrado.", req, res, next)
+        next("ID alumno no encontrado.")
     }
 }
 
@@ -53,7 +56,7 @@ function id_letra(req, res, next){
         req.alumnoBuscado = alumnos
         next()
     }else{
-        badRequest("Por favor ingresar un numero.", req, res, next)
+        next("Por favor ingresar un numero.")
     }
 }
 
@@ -65,8 +68,10 @@ function check_id (req, res, next){
         id_numero(req, res, next)
     } 
 }
-
-app.get('/alumno/:id', check_id, okMiddleware)
+// ==================================== BUSCAR ID
+app.get('/alumno/:id', check_id, okMiddleware, badRequest)
+// ==================================== AGREGAR ID
+app.get('/agregar/:id', agregar_id, okMiddleware, badRequest)
 
 function agregar_id(req, res, next){
     req.userId = req.params.id
@@ -77,8 +82,42 @@ function agregar_id(req, res, next){
         badRequest("ID en uso.", req, res, next)
     }
 }
+// ==================================== VALIDAR PASS
+/**
+ * Por lo menos una mayuscula
+ * por lo menos un numero
+ * mayor a 8 caracteres
+ * que tenga un caractere especial
+ *   @param {string} req - La contraseña
+ */
+function errorValidatorMidleware(req, res, next){
+    const result = validationResult(req);
+        if (!result.isEmpty()) {
+            return res.send({ errors: result.array() });
+        }
+        next()
+}
 
-app.get('/agregar/:id', agregar_id, okMiddleware)
+const esContraseñaFuerte = body('password').isStrongPassword(
+    {
+        minLength: 8,
+        minLowercase: 1,
+        minUppercase: 1,
+        minNumbers: 1,
+        minSymbols: 1
+    }
+)
+.withMessage('Password is not strong enough')
+
+
+function endDebugger(req, res, next) {
+    console.log('Body:  ', req.body)
+    next()
+}
+
+const nameValidator = body('name').isLength({ min: 3 }).withMessage('El nombre tiene que tener mas de 3 caracteres.')
+
+app.post("/alumno", nameValidator,esContraseñaFuerte, errorValidatorMidleware, okMiddleware)
 
 app.listen(3000, () => {
     console.log('< --- Servidor iniciado --- >')
