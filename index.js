@@ -2,6 +2,7 @@ const express = require('express');
 const app = express();
 const { body, validationResult }= require('express-validator');
 app.use(express.json());
+const bodyParser = require('body-parser');
 
 const alumnos = [
     {
@@ -70,55 +71,38 @@ function check_id (req, res, next){
 }
 // ==================================== BUSCAR ID
 app.get('/alumno/:id', check_id, okMiddleware, badRequest)
-// ==================================== AGREGAR ID
-app.get('/agregar/:id', agregar_id, okMiddleware, badRequest)
 
-function agregar_id(req, res, next){
-    req.userId = req.params.id
+// ==================================== AGREGAR ID
+var jsonParser = bodyParser.json();
+
+function alumno_agregar(req, res, next) {
+    req.userId = req.body.id
     const resultado = id_existe(req)
     if (!resultado){
-        console.log("ID libre")
-    }else{
-        badRequest("ID en uso.", req, res, next)
-    }
-}
-// ==================================== VALIDAR PASS
-/**
- * Por lo menos una mayuscula
- * por lo menos un numero
- * mayor a 8 caracteres
- * que tenga un caractere especial
- *   @param {string} req - La contraseña
- */
-function errorValidatorMidleware(req, res, next){
-    const result = validationResult(req);
-        if (!result.isEmpty()) {
-            return res.send({ errors: result.array() });
-        }
         next()
-}
-
-const esContraseñaFuerte = body('password').isStrongPassword(
-    {
-        minLength: 8,
-        minLowercase: 1,
-        minUppercase: 1,
-        minNumbers: 1,
-        minSymbols: 1
+    }else{
+        next("ID en uso, prueba con otro.")
     }
-)
-.withMessage('Password is not strong enough')
-
-
-function endDebugger(req, res, next) {
-    console.log('Body:  ', req.body)
-    next()
 }
 
-const nameValidator = body('name').isLength({ min: 3 }).withMessage('El nombre tiene que tener mas de 3 caracteres.')
+function alumno_guardar(req, res, next) {
+    alumnos.push(
+        {
+            "id": req.body.id,
+            "nombre": req.body.nombre,
+            "apellido": req.body.apellido,
+            "email": req.body.email,
+            "cursos": [
+                { "codigo": "k200", nombre: "Paradigmas de la Programación" },
+                { "codigo": "k201", nombre: "Testing " }
+            ]
+        }
+    )
+    res.json({message: "Alumno guardado correctamente!"})
+}
 
-app.post("/alumno", nameValidator,esContraseñaFuerte, errorValidatorMidleware, okMiddleware)
+app.post("/agregar", alumno_agregar,alumno_guardar,badRequest)
 
 app.listen(3000, () => {
     console.log('< --- Servidor iniciado --- >')
-})
+});
